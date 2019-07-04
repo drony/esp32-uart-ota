@@ -226,7 +226,7 @@ static void ota_example_task(void *pvParameter)
                 task_fatal_error();
             }
             binary_file_length += data_read;
-            ESP_LOGD(TAG, "Written image length %d", binary_file_length);
+            ESP_LOGI(TAG, "Written image length %d", binary_file_length);
         } else if (data_read == 0) {
             ///TODO: signal end of transmission
             ESP_LOGI(TAG, "Connection closed,all data received");
@@ -254,6 +254,10 @@ void app_main()
 {
     uint8_t sha_256[HASH_LEN] = { 0 };
     esp_partition_t partition;
+    
+    //set debug output
+    esp_log_level_set("*",ESP_LOG_DEBUG);
+    esp_log_level_set(TAG,ESP_LOG_DEBUG);
 
     // get sha256 digest for the partition table
     partition.address   = ESP_PARTITION_TABLE_OFFSET;

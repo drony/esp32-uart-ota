@@ -32,6 +32,10 @@
 #include <unistd.h>
 #include <stdio.h>
 
+//bytes of one packet transmitted in one piece.
+//all corresponding buffers should be at least this size.
+#define CHUNKSIZE 32
+
 int set_interface_attribs (int fd, int speed, int parity)
 {
         struct termios tty;
@@ -95,11 +99,13 @@ int main(int argc, char* argv[])
   //if set to 1, file is finished & we wait for Serial to finish
   int finished = 0;
   //input buffer
-  char buf[1024];
+  char buf[CHUNKSIZE];
   //sync bytes, to trigger update
   char sync[6] = {0xC0,0xFF,0xFE,0xAA,0x55,0x90};
   //total size of sent bytes
   int totalsize = 0;
+  //wait after first few bytes for ESP32 to open the partition
+  int wait = 0;
   
   // check parameter number
   if (argc < 3) {
@@ -137,7 +143,7 @@ int main(int argc, char* argv[])
   while(!finished)
   {
     //read one chunk from file
-    int ret = read(fd_bin,buf,1024);
+    int ret = read(fd_bin,buf,CHUNKSIZE);
     //is there an error?
     if(ret == -1)
     {
@@ -145,7 +151,7 @@ int main(int argc, char* argv[])
       return errno;
     } else totalsize += ret;
     //check if we reached EOF
-    if(ret != 1024)
+    if(ret != CHUNKSIZE)
     {
       printf("Finished reading, total size: %d\r\n",totalsize);
       finished = 1;
@@ -159,14 +165,20 @@ int main(int argc, char* argv[])
     
     //wait after the partition header
     //the ESP32 needs a few seconds after opening the partition.
-    if(totalsize == 1024) 
+    if((totalsize >= 512) && (wait == 0)) 
     {
       printf("Wrote first chunk, waiting 10s for ESP32 to opening new partition\r\n");
       usleep(10000000);
+      wait = 1;
     }
   
     //sleep...
-    usleep(100000);
+    #if CHUNKSIZE <= 512
+    //usleep(CHUNKSIZE*80);
+    #endif
+    #if CHUNKSIZE >= 512
+    usleep(CHUNKSIZE*700);
+    #endif
   }
   
   return 0;
